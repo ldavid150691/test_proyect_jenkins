@@ -28,6 +28,7 @@ pipeline {
                         body: "${TEST}",
                         to: "diablos150691@gmail.com",
                         from: "diablos150691@gmail.com"
+			    )
                     
                 }
             }
