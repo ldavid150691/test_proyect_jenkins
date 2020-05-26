@@ -21,7 +21,13 @@ pipeline {
 	stage('Etapa 2 - Test solucion') {
             steps {
                 script{
-                    echo = bat (script:"mvn test", returnStdout: true)
+                    //echo = bat (script:"mvn test", returnStdout: true)
+	           def TEST = echo bat (script:"mvn test", returnStdout: true)
+                    emailext (
+                        subject: "mvn test: ${PROJECT_NAME}",
+                        body: "${TEST}",
+                        to: "diablos150691@gmail.com",
+                        from: "diablos150691@gmail.com"
                     
                 }
             }
@@ -55,12 +61,19 @@ pipeline {
 		   bat("mkdir C:\\jenkins_route\\Prod\\${currentBuild.startTimeInMillis} & move /Y ${WORKSPACE}\\${JAR[0].path} C:\\jenkins_route\\Prod\\${currentBuild.startTimeInMillis}")			   
                     bat("xcopy print_compiler.txt C:\\jenkins_route\\Prod\\${currentBuild.startTimeInMillis} /Y")
                   }
+		   emailext (
+                        subject: "Distribucion a ambiente productivo ${PROJECT_NAME}",
+                        body: "Nueva distribucion en carpeta C:\\jenkins_route\\Prod\\${currentBuild.startTimeInMillis}",
+                        to: "diablos150691@gmail.com",
+                        from: "diablos150691@gmail.com"
+                   )
             }
         }
-        stage('Etapa 7 - Distribution a ambiente pre productivo') {
+        stage('Etapa 7 - Distribucion a ambiente pre productivo') {
             steps {
 	    	bat("mkdir C:\\jenkins_route\\PreProd\\${currentBuild.startTimeInMillis}")
                 bat("xcopy ${WORKSPACE} C:\\jenkins_route\\PreProd\\${currentBuild.startTimeInMillis} /E /S /H /Y")	
+		
             }
         }
     }
