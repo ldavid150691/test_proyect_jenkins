@@ -1,0 +1,192 @@
+JAVA, MAVEN, GIT, TOMCAT y JENKINS
+
+Laboratorio con la finalidad de aprender a integrar un proceso de desarrollo con git, maven e integrado por JENKINS!
+
+
+Paso 1.  Bajar JAVA, configurar JAVA_HOME
+https://adoptopenjdk.net/archive.html?variant=openjdk8&jvmVariant=openj9
+
+C:\Program Files\Java\jdk1.8.0_65
+C:\Program Files\AdoptOpenJDK\jdk-8.0.252.09-openj9
+
+
+Comandos java -version
+
+
+2. Bajar MAVEN, configurar M2_HOME
+ http://maven.apache.org/download.cgi#downloading-apache-maven-3-6-3 
+C:\lab_documents\instalados\apache-maven-3.6.3\bin
+ 
+ 
+comandos mv,
+ 
+Coprobar rutas:
+set | findstr HOME 
+
+*comandos mv
+mvn -version
+mvn archetype:generate -DgroupId=co.lab.mvn -DartifactId=test_proyect_jenkins -DarchetypeArtifactId=maven-archetype-quickstart -DarchetypeVersion=1.4 -DinteractiveMode=false
+mvn archetype:generate -DgroupId=co.lab.mvn -DartifactId=test_proyect_web -DarchetypeArtifactId=maven-archetype-webapp -DarchetypeVersion=1.4 -DinteractiveMode=false
+Arquetipo: maven-archetype-webapp
+mvn install
+mvn compile
+mvn package
+mvn test
+mvn site
+mvn clean
+ 
+3. Bajar git,https://git-scm.com/downloads
+
+*Comandos git
+git --version
+
+super log:
+git config --global alias.superlog "log --graph --abbrev-commit --decorate --date=relative --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all"
+
+* Repositorio Local
+git init
+git status
+git add
+git commit -m "mensaje commit"
+git reset --soft HEAD~1
+
+* Respositorio remoto
+git remote add origin https://github.com/ldavid150691/test_proyect_jenkins.git
+git remote -v
+git remote rm origin
+git push origin master --force
+git pull origin master
+
+4. Bajar Tomcat server, configurar %CATALINA_HOME%\bin
+https://tomcat.apache.org/download-90.cgi
+
+C:\Program Files\Apache Software Foundation\Tomcat 9.0
+
+* Usuario: C:\Program Files\Apache Software Foundation\Tomcat 9.0\conf\tomcat-users.xml
+<role rolename="tomcat"/>
+  <user username="tomcat" password="tomcat" roles="manager-gui,tomcat,admin-gui"/>
+
+starup.bat
+shutdown.bat
+
+5. Baja Jenkins, http://mirrors.jenkins-ci.org/war/latest/jenkins.war
+Instalar WAR en  C:\Program Files\Apache Software Foundation\Tomcat 9.0\webapps
+
+type ruta
+
+* plugin ocean blue
+* plugin pipeline utilities stage
+
+Email configuration
+
+Manage Jenkins - Configure system - email notification
+smtp.gmail.com
+- Advance
+check -> user SMTP Authentification 
+User name: gmail
+Password
+check -> user SMTP Authentification 
+SMTP Port SSL : 465
+
+-> Test Configuration
+
+**** PIPE LINE EXAMPLE ****
+pipeline {
+	agent any
+    environment {
+		PROJECT_NAME='INTEGRATION TEST JENKINS'
+    }
+    stages {
+		stage('Etapa 0') {
+			steps {
+				echo "Proyecto ${PROJECT_NAME}"
+				echo "Folder name for release: ${currentBuild.startTimeInMillis}"
+			}
+		}
+        stage('Etapa 1 - Validaciones MAVEN') {
+            steps {
+	    	echo "***Version MAVEN"	
+                bat "mvn -version"
+		echo "***Validacion MAVEN"	
+                bat "mvn validate"
+            }
+        }
+	stage('Etapa 2 - Test solucion') {
+            steps {
+                script{
+                    //echo = bat (script:"mvn test", returnStdout: true)
+	           def TEST = bat (script:"mvn test", returnStdout: true)
+                    emailext (
+                        subject: "mvn test: ${PROJECT_NAME}",
+                        body: "${TEST}",
+                        to: "diablos150691@gmail.com",
+                        from: "diablos150691@gmail.com"
+			    )
+                    
+                }
+            }
+        }
+	stage('Etapa 3 - Compilar solucion') {
+            steps {
+                script{		   
+                    echo bat (script:"mvn compile", returnStdout: true)
+                    
+                }
+            }
+        }
+        stage('Etapa 4 - Empaquetar solucion') {
+            steps {
+                bat "mvn package"
+            }
+        }
+        stage('Etapa 5 - Creacion de huellas') {
+            steps {
+                script{
+                    def JAR = findFiles(glob: '**/target/*.jar')
+                    bat "certutil -hashfile ${JAR[0].path} SHA256 | findstr /v hash > print_compiler.txt"
+                }
+                
+            }
+        }
+        stage('Etapa 6 - Distribucion a ambiente productivo') {
+            steps {
+                script{
+                    def JAR = findFiles(glob: '**/target/*.jar')
+		   bat("mkdir C:\\jenkins_route\\Prod\\${currentBuild.startTimeInMillis} & move /Y ${WORKSPACE}\\${JAR[0].path} C:\\jenkins_route\\Prod\\${currentBuild.startTimeInMillis}")			   
+                    bat("xcopy print_compiler.txt C:\\jenkins_route\\Prod\\${currentBuild.startTimeInMillis} /Y")
+                  }
+		   emailext (
+                        subject: "Distribucion a ambiente productivo ${PROJECT_NAME}",
+                        body: "Nueva distribucion en carpeta C:\\jenkins_route\\Prod\\${currentBuild.startTimeInMillis}",
+                        to: "diablos150691@gmail.com",
+                        from: "diablos150691@gmail.com"
+                   )
+            }
+        }
+        stage('Etapa 7 - Distribucion a ambiente pre productivo') {
+            steps {
+	    	bat("mkdir C:\\jenkins_route\\PreProd\\${currentBuild.startTimeInMillis}")
+                bat("xcopy ${WORKSPACE} C:\\jenkins_route\\PreProd\\${currentBuild.startTimeInMillis} /E /S /H /Y")	
+		
+            }
+        }
+    }
+	post {
+		always {
+            echo "Resultado: ${currentBuild.currentResult}"
+        }
+        aborted {
+            echo "BUILD ABORTED"
+        }
+        success {
+            echo "BUILD SUCCESS"          
+        }
+        unstable {
+            echo "BUILD UNSTABLE"
+        }
+        failure {
+            echo "BUILD FAILURE"			
+        }
+	}
+}
+***********
