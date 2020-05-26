@@ -22,7 +22,7 @@ pipeline {
             steps {
                 script{
                     //echo = bat (script:"mvn test", returnStdout: true)
-	           def TEST = echo bat (script:"mvn test", returnStdout: true)
+	           def TEST = bat (script:"mvn test", returnStdout: true)
                     emailext (
                         subject: "mvn test: ${PROJECT_NAME}",
                         body: "${TEST}",
